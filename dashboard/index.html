@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stealthera · Health Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+  /* Font fallbacks when offline */
+  :root { font-synthesis: none; }
+
+  :root {
+    --bg: #070b12;
+    --surface: #0d1420;
+    --surface2: #131c2e;
+    --border: rgba(99,179,237,0.12);
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --warn: #f59e0b;
+    --crit: #ef4444;
+    --ok: #10b981;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --glow: rgba(59,130,246,0.15);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0 }
+  body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* ── grid noise bg ── */
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(59,130,246,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,.03) 1px, transparent 1px);
+    background-size:40px 40px;
+  }
+
+  header {
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1rem 2rem;
+    background:rgba(7,11,18,.85); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+  }
+  .logo { font-size:1.4rem; font-weight:800; letter-spacing:-.02em; }
+  .logo span { color:var(--accent2); }
+  .user-tabs { display:flex; gap:.5rem; }
+  .tab {
+    padding:.4rem 1rem; border-radius:6px; cursor:pointer; font-size:.82rem; font-weight:600;
+    border:1px solid var(--border); background:transparent; color:var(--muted); transition:.2s;
+  }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tab:hover:not(.active) { border-color:var(--accent); color:var(--text); }
+
+  main { position:relative; z-index:1; padding:2rem; max-width:1400px; margin:0 auto; }
+
+  /* ── kpi row ── */
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+  .kpi {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:1.4rem 1.6rem; position:relative; overflow:hidden; transition:.2s;
+  }
+  .kpi:hover { border-color:var(--accent); box-shadow:0 0 24px var(--glow); }
+  .kpi::before {
+    content:''; position:absolute; top:-30px; right:-30px;
+    width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle, var(--kpi-color,.2) 0%, transparent 70%);
+  }
+  .kpi-label { font-size:.72rem; font-weight:600; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:.5rem; }
+  .kpi-value { font-family:'DM Mono',monospace; font-size:2.2rem; font-weight:500; line-height:1; }
+  .kpi-unit  { font-size:.9rem; color:var(--muted); margin-left:.2rem; }
+  .kpi-sub   { font-size:.75rem; color:var(--muted); margin-top:.4rem; }
+
+  /* ── two-col layout ── */
+  .two-col { display:grid; grid-template-columns:1.6fr 1fr; gap:1.5rem; margin-bottom:2rem; }
+
+  /* ── panels ── */
+  .panel {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:1.4rem;
+  }
+  .panel-title { font-size:.78rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem; }
+  .panel-title::before { content:''; display:block; width:3px; height:14px; border-radius:2px; background:var(--accent); }
+
+  /* ── chart canvas ── */
+  .chart-wrap { position:relative; height:220px; }
+  svg.chart { width:100%; height:100%; overflow:visible; }
+  .chart-line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .chart-area { opacity:.12; }
+  .chart-dot  { r:3; }
+
+  /* ── alerts list ── */
+  .alert-item {
+    display:flex; gap:.8rem; align-items:flex-start;
+    padding:.75rem; border-radius:8px; margin-bottom:.5rem;
+    border-left:3px solid;
+    background:rgba(255,255,255,.02);
+    animation: fadeIn .3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .alert-item.critical { border-color:var(--crit); background:rgba(239,68,68,.05); }
+  .alert-item.warning  { border-color:var(--warn); background:rgba(245,158,11,.05); }
+  .alert-item.info     { border-color:var(--ok);   background:rgba(16,185,129,.05); }
+  .alert-badge {
+    font-size:.65rem; font-weight:700; padding:.2rem .5rem; border-radius:4px;
+    letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; margin-top:.1rem;
+  }
+  .critical .alert-badge { background:rgba(239,68,68,.2); color:var(--crit); }
+  .warning  .alert-badge { background:rgba(245,158,11,.2); color:var(--warn); }
+  .info     .alert-badge { background:rgba(16,185,129,.2); color:var(--ok); }
+  .alert-msg  { font-size:.82rem; line-height:1.45; color:var(--text); }
+  .alert-date { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--muted); margin-top:.2rem; }
+
+  /* ── daily table ── */
+  table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  th { text-align:left; color:var(--muted); font-weight:600; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; padding:.5rem .6rem; border-bottom:1px solid var(--border); }
+  td { padding:.55rem .6rem; border-bottom:1px solid rgba(255,255,255,.03); font-family:'DM Mono',monospace; }
+  tr:hover td { background:rgba(59,130,246,.04); }
+  .pill { display:inline-block; padding:.1rem .4rem; border-radius:4px; font-size:.7rem; }
+
+  /* ── trend sparklines ── */
+  .trend-row { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; }
+  .trend-box { background:var(--surface2); border-radius:8px; padding:1rem; }
+  .trend-label { font-size:.7rem; color:var(--muted); margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.06em; }
+  .trend-val { font-family:'DM Mono',monospace; font-size:1.5rem; }
+  .trend-slope { font-size:.72rem; margin-top:.2rem; }
+  .up   { color:var(--crit); }
+  .down { color:var(--ok); }
+  .flat { color:var(--muted); }
+
+  /* ── loading ── */
+  .loading { display:flex; align-items:center; justify-content:center; height:60vh; flex-direction:column; gap:1rem; }
+  .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* responsive */
+  @media(max-width:900px) {
+    .kpi-row { grid-template-columns:repeat(2,1fr); }
+    .two-col { grid-template-columns:1fr; }
+  }
+  @media(max-width:540px) {
+    .kpi-row { grid-template-columns:1fr 1fr; }
+    header { flex-direction:column; gap:1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Stealthera<span>.</span></div>
+  <div class="user-tabs" id="userTabs"></div>
+</header>
+
+<main>
+  <div class="loading" id="loadingEl">
+    <div class="spinner"></div>
+    <div style="font-size:.85rem;color:var(--muted)">Fetching health data…</div>
+  </div>
+
+  <div id="dashboard" style="display:none">
+    <!-- KPI row -->
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- Charts + Alerts -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Heart Rate — 7 Day</div>
+        <div class="chart-wrap"><svg class="chart" id="hrChart"></svg></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Active Alerts</div>
+        <div id="alertsList" style="max-height:280px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Steps + Sleep charts -->
+    <div class="two-col" style="margin-bottom:2rem">
+      <div class="panel">
+        <div class="panel-title">Daily Steps — 7 Day</div>
+        <div class="chart-wrap"><svg class="chart" id="stepsChart"></svg></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Sleep Duration — 7 Day</div>
+        <div class="chart-wrap"><svg class="chart" id="sleepChart"></svg></div>
+      </div>
+    </div>
+
+    <!-- Daily table + Trend boxes -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Daily Log</div>
+        <div style="overflow-x:auto"><table id="dailyTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Trends</div>
+        <div class="trend-row" id="trendBoxes"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = window.STEALTHERA_API_URL || (window.location.hostname === '' || window.location.hostname === 'localhost' ? 'http://localhost:8000' : window.location.origin);
+
+// ── palette ──────────────────────────────────────────────────────────────────
+const C = { hr:'#3b82f6', steps:'#06b6d4', sleep:'#a78bfa', spo2:'#10b981' };
+
+let currentUser = null;
+let dailyData   = [];
+
+// ── fetch helpers ─────────────────────────────────────────────────────────────
+async function api(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error(r.statusText);
+    return r.json();
+  } catch(e) {
+    console.error('API error:', e);
+    return null;
+  }
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const usersRes = await api('/users');
+  if (!usersRes) { useFallback(); return; }
+  const users = usersRes.users;
+  buildTabs(users);
+  selectUser(users[0]);
+}
+
+function useFallback() {
+  // Use embedded demo data when API is not running
+  const users = ['user_001','user_002','user_003'];
+  buildTabs(users);
+  selectUser(users[0]);
+}
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+function buildTabs(users) {
+  const el = document.getElementById('userTabs');
+  el.innerHTML = '';
+  users.forEach(u => {
+    const btn = document.createElement('button');
+    btn.className = 'tab';
+    btn.id = 'tab-' + u;
+    btn.textContent = u;
+    btn.addEventListener('click', () => selectUser(u));
+    el.appendChild(btn);
+  });
+}
+
+async function selectUser(uid) {
+  currentUser = uid;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabEl = document.getElementById('tab-'+uid);
+  if (tabEl) tabEl.classList.add('active');
+
+  document.getElementById('loadingEl').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+
+  const [profile, daily, trend] = await Promise.all([
+    api(`/user/${uid}`),
+    api(`/user/${uid}/daily?days=14`),
+    api(`/user/${uid}/trend`),
+  ]);
+
+  // fallback demo data
+  const P = profile || demoProfile(uid);
+  const D = daily   || demoDaily(uid);
+  const T = trend   || demoTrend(uid);
+
+  dailyData = D.data || [];
+
+  renderKPIs(P.summary || {}, dailyData);
+  renderAlerts(P.alerts || []);
+  renderChart('hrChart', dailyData.map(d=>d.avg_hr), dailyData.map(d=>d.date), C.hr);
+  renderChart('stepsChart', dailyData.map(d=>d.total_steps), dailyData.map(d=>d.date), C.steps);
+  renderChart('sleepChart', dailyData.map(d=>d.sleep_hrs), dailyData.map(d=>d.date), C.sleep);
+  renderTable(dailyData.slice(0,10));
+  renderTrends(T.trends || {});
+
+  document.getElementById('loadingEl').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs(s, daily) {
+  const latest = daily[0] || {};
+  const kpis = [
+    { label:'Heart Rate', value: s.avg_hr_today ?? latest.avg_hr ?? '—', unit:'bpm', sub:`Baseline: ${s.hr_baseline ?? '—'} bpm`, color:'rgba(59,130,246,.3)' },
+    { label:'SpO₂', value: s.avg_spo2_today ?? latest.avg_spo2 ?? '—', unit:'%', sub:'Blood oxygen saturation', color:'rgba(16,185,129,.3)' },
+    { label:'Steps Today', value: (s.total_steps_today ?? latest.total_steps ?? 0).toLocaleString(), unit:'', sub:`7d avg: ${(s['7d_avg_steps']||0).toLocaleString()}`, color:'rgba(6,182,212,.3)' },
+    { label:'Sleep', value: s.sleep_hrs_last_night ?? latest.sleep_hrs ?? '—', unit:'hrs', sub:`7d avg: ${s['7d_avg_sleep_hrs'] ?? '—'} hrs`, color:'rgba(167,139,250,.3)' },
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => `
+    <div class="kpi" style="--kpi-color:${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${typeof k.value==='number'?k.value.toFixed(1):k.value}<span class="kpi-unit">${k.unit}</span></div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── alerts ────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = String(str ?? '');
+  return d.innerHTML;
+}
+
+function renderAlerts(alerts) {
+  const el = document.getElementById('alertsList');
+  el.innerHTML = '';
+  if (!alerts.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:var(--muted);font-size:.82rem;padding:.5rem';
+    empty.textContent = 'No active alerts ✓';
+    el.appendChild(empty);
+    return;
+  }
+  alerts.slice(0,12).forEach(a => {
+    const item = document.createElement('div');
+    item.className = 'alert-item ' + escHtml(a.severity);
+    const badge = document.createElement('span');
+    badge.className = 'alert-badge';
+    badge.textContent = a.severity;
+    const body = document.createElement('div');
+    const msg = document.createElement('div');
+    msg.className = 'alert-msg';
+    msg.textContent = a.message;
+    const dateEl = document.createElement('div');
+    dateEl.className = 'alert-date';
+    let dateText = a.date;
+    if (a.hour !== undefined) dateText += ' · ' + String(a.hour).padStart(2,'0') + ':00';
+    if (a.value !== undefined) dateText += ' · ' + parseFloat(a.value).toFixed(1);
+    dateEl.textContent = dateText;
+    body.appendChild(msg);
+    body.appendChild(dateEl);
+    item.appendChild(badge);
+    item.appendChild(body);
+    el.appendChild(item);
+  });
+}
+
+// ── svg line chart ────────────────────────────────────────────────────────────
+function renderChart(id, values, labels, color) {
+  const svg = document.getElementById(id);
+  svg.innerHTML = '';
+  const data = [...values].reverse();
+  const labs  = [...labels].reverse();
+  if (!data.length) return;
+
+  const W = svg.parentElement.clientWidth || 600;
+  const H = 200;
+  const pad = { t:10, r:10, b:30, l:40 };
+  const w = W - pad.l - pad.r;
+  const h = H - pad.t - pad.b;
+
+  const mn = Math.min(...data) * .97;
+  const mx = Math.max(...data) * 1.03;
+  const xS = i => pad.l + (i/(data.length-1||1))*w;
+  const yS = v => pad.t + h - ((v-mn)/(mx-mn||1))*h;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // grid lines
+  [0,.25,.5,.75,1].forEach(t => {
+    const y = pad.t + t*h;
+    const v = mx - t*(mx-mn);
+    const g = doc('line', { x1:pad.l, y1:y, x2:pad.l+w, y2:y, stroke:'rgba(255,255,255,.05)', 'stroke-width':'1' });
+    svg.appendChild(g);
+    const txt = doc('text', { x:pad.l-6, y:y+4, 'text-anchor':'end', fill:'rgba(148,163,184,.6)', 'font-size':'9', 'font-family':'DM Mono' });
+    txt.textContent = v.toFixed(0);
+    svg.appendChild(txt);
+  });
+
+  // area
+  const pts = data.map((v,i) => `${xS(i)},${yS(v)}`).join(' ');
+  const areaPath = `M ${xS(0)},${yS(mn)} ` + data.map((v,i)=>`L ${xS(i)},${yS(v)}`).join(' ') + ` L ${xS(data.length-1)},${yS(mn)} Z`;
+  const area = doc('path', { d:areaPath, fill:color, class:'chart-area' });
+  svg.appendChild(area);
+
+  // line
+  const linePath = `M ` + data.map((v,i)=>`${xS(i)},${yS(v)}`).join(' L ');
+  const line = doc('path', { d:linePath, stroke:color, class:'chart-line' });
+  svg.appendChild(line);
+
+  // dots + labels (every nth)
+  const nth = Math.ceil(data.length / 7);
+  data.forEach((v,i) => {
+    const circle = doc('circle', { cx:xS(i), cy:yS(v), r:'3', fill:color, class:'chart-dot' });
+    svg.appendChild(circle);
+    if (i % nth === 0) {
+      const t = doc('text', { x:xS(i), y:H-6, 'text-anchor':'middle', fill:'rgba(148,163,184,.5)', 'font-size':'8', 'font-family':'DM Mono' });
+      t.textContent = labs[i] ? labs[i].slice(5) : '';
+      svg.appendChild(t);
+    }
+  });
+}
+
+function doc(tag, attrs={}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+  return el;
+}
+
+// ── daily table ───────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  const cols = ['date','avg_hr','max_hr','avg_spo2','total_steps','sleep_hrs'];
+  const hdrs = ['Date','Avg HR','Max HR','SpO₂','Steps','Sleep'];
+  const fmt = (k,v) => {
+    if (k==='total_steps') return Number(v).toLocaleString();
+    if (typeof v === 'number') return v.toFixed(k.includes('spo2')?2:1);
+    return v;
+  };
+  const rowHtml = rows.map(r => `<tr>${cols.map(c=>`<td>${fmt(c,r[c])}</td>`).join('')}</tr>`).join('');
+  document.getElementById('dailyTable').innerHTML =
+    `<thead><tr>${hdrs.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowHtml}</tbody>`;
+}
+
+// ── trends ────────────────────────────────────────────────────────────────────
+function renderTrends(trends) {
+  const items = [
+    { key:'heart_rate', label:'Heart Rate', unit:'bpm', color:C.hr },
+    { key:'steps',      label:'Steps',      unit:'steps/day', color:C.steps },
+    { key:'sleep_hrs',  label:'Sleep',      unit:'hrs/night', color:C.sleep },
+    { key:'spo2',       label:'SpO₂',       unit:'%', color:C.spo2 },
+  ];
+  document.getElementById('trendBoxes').innerHTML = items.map(item => {
+    const t = trends[item.key] || {};
+    const s7  = t['7d_slope'];
+    const s30 = t['30d_slope'];
+    const cls = s7 === null ? 'flat' : s7 > 0.05 ? 'up' : s7 < -0.05 ? 'down' : 'flat';
+    const arrow = cls==='up' ? '↑' : cls==='down' ? '↓' : '→';
+    return `<div class="trend-box">
+      <div class="trend-label">${item.label}</div>
+      <div class="trend-val" style="color:${item.color}">${arrow}</div>
+      <div class="trend-slope ${cls}">7d slope: ${s7 !== null && s7 !== undefined ? (s7>0?'+':'')+s7.toFixed(3) : 'n/a'} ${item.unit}</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">30d: ${s30 !== null && s30 !== undefined ? (s30>0?'+':'')+s30.toFixed(3) : 'n/a'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── demo data (when API offline) ──────────────────────────────────────────────
+function demoProfile(uid) {
+  return { summary:{ user_id:uid, avg_hr_today:72.1, avg_spo2_today:97.8, total_steps_today:7420, sleep_hrs_last_night:6.8, hr_baseline:70.5, '7d_avg_steps':7100, '7d_avg_sleep_hrs':7.0 }, alerts:[
+    { user_id:uid, type:'hr_spike', severity:'critical', date:'2024-05-18', hour:14, value:158, message:'Heart-rate spike detected: 158 bpm at 14:00 on 2024-05-18.' },
+    { user_id:uid, type:'low_spo2', severity:'warning',  date:'2024-05-22', value:92.4, message:'Low blood oxygen: 92.4% on 2024-05-22. Values below 95% may require medical attention.' },
+    { user_id:uid, type:'sleep_reduction', severity:'warning', date:'2024-05-28', value:5.3, trend_slope:-0.08, message:'Average sleep over last 5 days is 5.3 hrs — below recommended 6–8 hrs.' },
+  ]};
+}
+function demoDaily(uid) {
+  const base = [72.1,70.9,71.8,69.4,73.2,70.5,71.0,72.8,69.9,70.3,71.4,72.0,70.1,69.8];
+  const dates = Array.from({length:14},(_,i)=>{ const d=new Date('2024-05-30'); d.setDate(d.getDate()-i); return d.toISOString().slice(0,10); });
+  return { data: base.map((hr,i)=>({ date:dates[i], avg_hr:hr, max_hr:hr+35+Math.random()*10, avg_spo2:97.5+Math.random(), min_spo2:94+Math.random()*2, total_steps:Math.round(6500+Math.random()*4000), sleep_hrs:+(6.2+Math.random()*2).toFixed(2) })) };
+}
+function demoTrend(uid) {
+  return { trends:{ heart_rate:{ '7d_slope':0.12,'30d_slope':-0.04 }, steps:{ '7d_slope':-42.3,'30d_slope':18.7 }, sleep_hrs:{ '7d_slope':-0.03,'30d_slope':0.01 }, spo2:{ '7d_slope':0.01,'30d_slope':-0.01 } } };
+}
+
+// ── boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
