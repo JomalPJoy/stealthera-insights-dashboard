@@ -1,0 +1,157 @@
+{
+  "GET /": {
+    "service": "Stealthera Health Insights API",
+    "version": "1.0.0",
+    "endpoints": ["/summary", "/alerts", "/user/{user_id}", "/user/{user_id}/daily", "/users"]
+  },
+
+  "GET /users": {
+    "users": ["user_001", "user_002", "user_003"]
+  },
+
+  "GET /summary": {
+    "users": [
+      {
+        "user_id": "user_001",
+        "last_updated": "2024-05-30",
+        "avg_hr_today": 71.4,
+        "avg_spo2_today": 97.82,
+        "total_steps_today": 7240,
+        "sleep_hrs_last_night": 6.9,
+        "hr_baseline": 70.1,
+        "7d_avg_steps": 6850,
+        "7d_avg_sleep_hrs": 6.75
+      },
+      {
+        "user_id": "user_002",
+        "last_updated": "2024-05-30",
+        "avg_hr_today": 68.3,
+        "avg_spo2_today": 98.14,
+        "total_steps_today": 9810,
+        "sleep_hrs_last_night": 7.4,
+        "hr_baseline": 67.9,
+        "7d_avg_steps": 9450,
+        "7d_avg_sleep_hrs": 7.2
+      }
+    ]
+  },
+
+  "GET /summary?user_id=user_001": {
+    "user_id": "user_001",
+    "last_updated": "2024-05-30",
+    "avg_hr_today": 71.4,
+    "avg_spo2_today": 97.82,
+    "total_steps_today": 7240,
+    "sleep_hrs_last_night": 6.9,
+    "hr_baseline": 70.1,
+    "7d_avg_steps": 6850,
+    "7d_avg_sleep_hrs": 6.75
+  },
+
+  "GET /alerts": {
+    "total": 3,
+    "alerts": [
+      {
+        "user_id": "user_002",
+        "type": "hr_spike",
+        "severity": "critical",
+        "date": "2024-05-18",
+        "hour": 14,
+        "value": 162.0,
+        "hr_z": 4.31,
+        "message": "Heart-rate spike detected: 162 bpm (z=4.31) at 14:00 on 2024-05-18."
+      },
+      {
+        "user_id": "user_001",
+        "type": "low_spo2",
+        "severity": "warning",
+        "date": "2024-05-22",
+        "value": 92.4,
+        "message": "Low blood oxygen: 92.4% on 2024-05-22. Values below 95% may require medical attention."
+      },
+      {
+        "user_id": "user_003",
+        "type": "sleep_reduction",
+        "severity": "warning",
+        "date": "2024-05-28",
+        "value": 5.3,
+        "trend_slope": -0.082,
+        "message": "Average sleep over last 5 days is 5.3 hrs — below recommended 6–8 hrs. Trend slope: -0.082 hrs/day."
+      }
+    ]
+  },
+
+  "GET /alerts?severity=critical": {
+    "total": 1,
+    "alerts": [
+      {
+        "user_id": "user_002",
+        "type": "hr_spike",
+        "severity": "critical",
+        "date": "2024-05-18",
+        "hour": 14,
+        "value": 162.0,
+        "hr_z": 4.31,
+        "message": "Heart-rate spike detected: 162 bpm (z=4.31) at 14:00 on 2024-05-18."
+      }
+    ]
+  },
+
+  "GET /user/user_001": {
+    "user_id": "user_001",
+    "summary": {
+      "user_id": "user_001",
+      "last_updated": "2024-05-30",
+      "avg_hr_today": 71.4,
+      "avg_spo2_today": 97.82,
+      "total_steps_today": 7240,
+      "sleep_hrs_last_night": 6.9,
+      "hr_baseline": 70.1,
+      "7d_avg_steps": 6850,
+      "7d_avg_sleep_hrs": 6.75
+    },
+    "alert_count": 2,
+    "alerts": [
+      {
+        "user_id": "user_001",
+        "type": "low_spo2",
+        "severity": "warning",
+        "date": "2024-05-22",
+        "value": 92.4,
+        "message": "Low blood oxygen: 92.4% on 2024-05-22. Values below 95% may require medical attention."
+      },
+      {
+        "user_id": "user_001",
+        "type": "low_activity",
+        "severity": "warning",
+        "date": "2024-05-27",
+        "value": 2841.0,
+        "message": "7-day average steps (2,841/day) below 3,000. Consider increasing daily movement."
+      }
+    ]
+  },
+
+  "GET /user/user_001/daily?days=7": {
+    "user_id": "user_001",
+    "days": 7,
+    "data": [
+      { "date": "2024-05-30", "avg_hr": 71.4, "max_hr": 113.2, "min_spo2": 95.1, "avg_spo2": 97.82, "total_steps": 7240, "sleep_hrs": 6.9 },
+      { "date": "2024-05-29", "avg_hr": 70.9, "max_hr": 108.7, "min_spo2": 95.8, "avg_spo2": 97.91, "total_steps": 7510, "sleep_hrs": 7.1 },
+      { "date": "2024-05-28", "avg_hr": 72.1, "max_hr": 121.4, "min_spo2": 94.9, "avg_spo2": 97.55, "total_steps": 6980, "sleep_hrs": 6.4 },
+      { "date": "2024-05-27", "avg_hr": 69.8, "max_hr": 105.3, "min_spo2": 96.2, "avg_spo2": 98.10, "total_steps": 5120, "sleep_hrs": 6.8 },
+      { "date": "2024-05-26", "avg_hr": 71.0, "max_hr": 119.8, "min_spo2": 95.4, "avg_spo2": 97.74, "total_steps": 8340, "sleep_hrs": 7.2 },
+      { "date": "2024-05-25", "avg_hr": 70.5, "max_hr": 111.6, "min_spo2": 96.0, "avg_spo2": 98.03, "total_steps": 7690, "sleep_hrs": 7.5 },
+      { "date": "2024-05-24", "avg_hr": 73.2, "max_hr": 127.9, "min_spo2": 94.7, "avg_spo2": 97.48, "total_steps": 6150, "sleep_hrs": 6.2 }
+    ]
+  },
+
+  "GET /user/user_001/trend": {
+    "user_id": "user_001",
+    "trends": {
+      "heart_rate": { "7d_slope": 0.12, "30d_slope": -0.04 },
+      "steps":      { "7d_slope": -42.3, "30d_slope": 18.7 },
+      "sleep_hrs":  { "7d_slope": -0.03, "30d_slope": 0.01 },
+      "spo2":       { "7d_slope": 0.01, "30d_slope": -0.01 }
+    }
+  }
+}
